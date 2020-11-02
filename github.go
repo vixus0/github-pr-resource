@@ -20,7 +20,7 @@ import (
 // Github for testing purposes.
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -o fakes/fake_github.go . Github
 type Github interface {
-	ListOpenPullRequests([]githubv4.PullRequestState) ([]*PullRequest, error)
+	ListPullRequests([]githubv4.PullRequestState) ([]*PullRequest, error)
 	ListModifiedFiles(int) ([]string, error)
 	PostComment(string, string) error
 	GetPullRequest(string, string) (*PullRequest, error)
@@ -97,8 +97,8 @@ func NewGithubClient(s *Source) (*GithubClient, error) {
 	}, nil
 }
 
-// ListOpenPullRequests gets the last commit on all open pull requests.
-func (m *GithubClient) ListOpenPullRequests(prStates []githubv4.PullRequestState) ([]*PullRequest, error) {
+// ListPullRequests gets the last commit on all pull requests with the matching state.
+func (m *GithubClient) ListPullRequests(prStates []githubv4.PullRequestState) ([]*PullRequest, error) {
 	var query struct {
 		Repository struct {
 			PullRequests struct {
