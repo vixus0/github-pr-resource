@@ -267,7 +267,20 @@ func TestCheck(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.description, func(t *testing.T) {
 			github := new(fakes.FakeGithub)
-			github.ListOpenPullRequestsReturns(tc.pullRequests, nil)
+			pullRequests := []*resource.PullRequest{}
+			filterStates := []githubv4.PullRequestState{githubv4.PullRequestStateOpen}
+			if len(tc.source.States) > 0 {
+				filterStates = tc.source.States
+			}
+			for i := range tc.pullRequests {
+				for j := range filterStates {
+					if filterStates[j] == tc.pullRequests[i].PullRequestObject.State {
+						pullRequests = append(pullRequests, tc.pullRequests[i])
+						break
+					}
+				}
+			}
+			github.ListOpenPullRequestsReturns(pullRequests, nil)
 
 			for i, file := range tc.files {
 				github.ListModifiedFilesReturnsOnCall(i, file, nil)
