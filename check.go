@@ -20,7 +20,7 @@ func Check(request CheckRequest, manager Github) (CheckResponse, error) {
 		filterStates = request.Source.States
 	}
 
-	pulls, err := manager.ListPullRequests(filterStates)
+	pulls, err := manager.ListPullRequests(filterStates, request.Source.BaseBranch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last commits: %s", err)
 	}
@@ -36,11 +36,6 @@ Loop:
 
 		// [ci skip]/[skip ci] in Commit message
 		if !disableSkipCI && ContainsSkipCI(p.Tip.Message) {
-			continue
-		}
-
-		// Filter pull request if the BaseBranch does not match the one specified in source
-		if request.Source.BaseBranch != "" && p.PullRequestObject.BaseRefName != request.Source.BaseBranch {
 			continue
 		}
 

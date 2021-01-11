@@ -273,6 +273,10 @@ func TestCheck(t *testing.T) {
 				filterStates = tc.source.States
 			}
 			for i := range tc.pullRequests {
+				prBaseRefName := tc.pullRequests[i].PullRequestObject.BaseRefName
+				if tc.source.BaseBranch != "" && prBaseRefName != tc.source.BaseBranch {
+					continue
+				}
 				for j := range filterStates {
 					if filterStates[j] == tc.pullRequests[i].PullRequestObject.State {
 						pullRequests = append(pullRequests, tc.pullRequests[i])
