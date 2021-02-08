@@ -267,7 +267,7 @@ func TestCheck(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.description, func(t *testing.T) {
 			github := new(fakes.FakeGithub)
-			github.ListOpenPullRequestsReturns(tc.pullRequests, nil)
+			github.SearchPullRequestsReturns(tc.pullRequests, nil)
 
 			for i, file := range tc.files {
 				github.ListModifiedFilesReturnsOnCall(i, file, nil)
@@ -279,7 +279,7 @@ func TestCheck(t *testing.T) {
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expected, output)
 			}
-			assert.Equal(t, 1, github.ListOpenPullRequestsCallCount())
+			assert.Equal(t, 1, github.SearchPullRequestsCallCount())
 		})
 	}
 }

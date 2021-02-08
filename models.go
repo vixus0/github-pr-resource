@@ -73,7 +73,7 @@ type MetadataField struct {
 type Version struct {
 	PR                  string                    `json:"pr"`
 	Commit              string                    `json:"commit"`
-	CommittedDate       time.Time                 `json:"committed,omitempty"`
+	UpdatedTime         time.Time                 `json:"updated,omitempty"`
 	ApprovedReviewCount string                    `json:"approved_review_count"`
 	State               githubv4.PullRequestState `json:"state"`
 }
@@ -83,7 +83,7 @@ func NewVersion(p *PullRequest) Version {
 	return Version{
 		PR:                  strconv.Itoa(p.Number),
 		Commit:              p.Tip.OID,
-		CommittedDate:       p.UpdatedDate().Time,
+		UpdatedTime:         p.UpdatedAt.Time,
 		ApprovedReviewCount: strconv.Itoa(p.ApprovedReviewCount),
 		State:               p.State,
 	}
@@ -112,21 +112,7 @@ type PullRequestObject struct {
 	IsCrossRepository bool
 	IsDraft           bool
 	State             githubv4.PullRequestState
-	ClosedAt          githubv4.DateTime
-	MergedAt          githubv4.DateTime
-}
-
-// UpdatedDate returns the last time a PR was updated, either by commit
-// or being closed/merged.
-func (p *PullRequest) UpdatedDate() githubv4.DateTime {
-	date := p.Tip.CommittedDate
-	switch p.State {
-	case githubv4.PullRequestStateClosed:
-		date = p.ClosedAt
-	case githubv4.PullRequestStateMerged:
-		date = p.MergedAt
-	}
-	return date
+	UpdatedAt         githubv4.DateTime
 }
 
 // CommitObject represents the GraphQL commit node.

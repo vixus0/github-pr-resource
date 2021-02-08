@@ -20,7 +20,7 @@ import (
 // Github for testing purposes.
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -o fakes/fake_github.go . Github
 type Github interface {
-	ListOpenPullRequests() ([]*PullRequest, error)
+	SearchPullRequests(string, int) ([]*PullRequest, error)
 	ListModifiedFiles(int) ([]string, error)
 	PostComment(string, string) error
 	GetPullRequest(string, string) (*PullRequest, error)
@@ -97,50 +97,45 @@ func NewGithubClient(s *Source) (*GithubClient, error) {
 	}, nil
 }
 
-// ListOpenPullRequests gets the last commit on all open pull requests.
-func (m *GithubClient) ListOpenPullRequests() ([]*PullRequest, error) {
+// SearchPullRequests uses a search query to fetch PR updates
+func (m *GithubClient) SearchPullRequests(query string, limit int) ([]*PullRequest, error) {
 	var query struct {
-		Repository struct {
-			PullRequests struct {
-				Edges []struct {
-					Node struct {
-						PullRequestObject
-						Reviews struct {
-							TotalCount int
-						} `graphql:"reviews(states: $prReviewStates)"`
-						Commits struct {
-							Edges []struct {
-								Node struct {
-									Commit CommitObject
-								}
-							}
-						} `graphql:"commits(last:$commitsLast)"`
-						Labels struct {
-							Edges []struct {
-								Node struct {
-									LabelObject
-								}
-							}
-						} `graphql:"labels(first:$labelsFirst)"`
+		Search struct {
+			Nodes []struct {
+				PullRequest struct {
+					PullRequestObject
+					Reviews struct {
+						TotalCount int
 					}
-				}
-				PageInfo struct {
-					EndCursor   githubv4.String
-					HasNextPage bool
-				}
-			} `graphql:"pullRequests(first:$prFirst,states:$prStates,after:$prCursor)"`
-		} `graphql:"repository(owner:$repositoryOwner,name:$repositoryName)"`
+					Commits struct {
+						Edges []struct {
+							Node struct {
+								Commit CommitObject
+							}
+						}
+					} `graphql:"commits(last:$commitsLast)"`
+					Labels struct {
+						Edges []struct {
+							Node struct {
+								LabelObject
+							}
+						}
+					} `graphql:"labels(first:$labelsFirst)"`
+				} `graphql:"... on PullRequest"`
+			}
+			PageInfo struct {
+				EndCursor   githubv4.String
+				HasNextPage bool
+			}
+		} `graphql:"search(query:$searchQuery,first:$searchFirst)"`
 	}
 
 	vars := map[string]interface{}{
-		"repositoryOwner": githubv4.String(m.Owner),
-		"repositoryName":  githubv4.String(m.Repository),
-		"prFirst":         githubv4.Int(100),
-		"prStates":        []githubv4.PullRequestState{githubv4.PullRequestStateOpen, githubv4.PullRequestStateClosed, githubv4.PullRequestStateMerged},
-		"prCursor":        (*githubv4.String)(nil),
-		"commitsLast":     githubv4.Int(1),
-		"prReviewStates":  []githubv4.PullRequestReviewState{githubv4.PullRequestReviewStateApproved},
-		"labelsFirst":     githubv4.Int(100),
+		"searchQuery":    githubv4.String(query),
+		"searchFirst":    githubv4.Int(limit),
+		"commitsLast":    githubv4.Int(1),
+		"prReviewStates": []githubv4.PullRequestReviewState{githubv4.PullRequestReviewStateApproved},
+		"labelsFirst":    githubv4.Int(100),
 	}
 
 	var response []*PullRequest
@@ -148,7 +143,8 @@ func (m *GithubClient) ListOpenPullRequests() ([]*PullRequest, error) {
 		if err := m.V4.Query(context.TODO(), &query, vars); err != nil {
 			return nil, err
 		}
-		for _, p := range query.Repository.PullRequests.Edges {
+		for _, node := range query.Search.Nodes {
+			p := node.PullRequest
 			labels := make([]LabelObject, len(p.Node.Labels.Edges))
 			for _, l := range p.Node.Labels.Edges {
 				labels = append(labels, l.Node.LabelObject)

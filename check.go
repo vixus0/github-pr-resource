@@ -14,7 +14,26 @@ import (
 func Check(request CheckRequest, manager Github) (CheckResponse, error) {
 	var response CheckResponse
 
-	pulls, err := manager.ListOpenPullRequests()
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString(fmt.Sprintf("repo:%s is:pr sort:updated-desc", request.Source.Repository))
+
+	if request.Source.IgnoreDrafts {
+		queryBuilder.WriteString("-is:draft")
+	}
+
+	// if no previous version, limit to most recent result
+	limit := 1
+
+	// if we have a previous version, get all updates since then
+	if request.Version.PR != "" {
+		limit = 100
+		timestamp := request.Version.UpdatedTime.Format("2006-01-02T15:04:05Z")
+		queryBuilder.WriteString(fmt.Sprintf("updated:>%s", time))
+	}
+
+	query := queryBuilder.String()
+
+	pulls, err := manager.SearchPullRequests(query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last commits: %s", err)
 	}
@@ -52,11 +71,6 @@ Loop:
 			}
 		}
 		if !stateFound {
-			continue
-		}
-
-		// Filter out commits that are too old.
-		if !p.UpdatedDate().Time.After(request.Version.CommittedDate) {
 			continue
 		}
 
